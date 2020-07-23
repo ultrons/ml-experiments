@@ -20,7 +20,7 @@ class ToyModel (nn.Module):
         x = self.mp1(x)
         x = torch.flatten(x, 1)
         x = self.fc1(x)
-        x = nn.Softmax()(x)
+        x = nn.Softmax(dim=-1)(x)
         return x
 
 FLAGS = {
@@ -31,8 +31,9 @@ FLAGS = {
 }
 
 def train(rank, FLAGS):
+    print("Starting train method on rank: {}".format(rank))
     dist.init_process_group(backend='nccl', world_size=FLAGS['world_size'],
-                            rank=rank)
+            init_method='env://', rank=rank)
     model = ToyModel()
     torch.cuda.set_device(rank)
     model.cuda(rank)
@@ -47,12 +48,14 @@ def train(rank, FLAGS):
 
     train_dataset = torchvision.datasets.MNIST('/tmp/', train=True, download=True,
                              transform=transform)
+    
     train_sampler = torch.utils.data.distributed.DistributedSampler(
         train_dataset, num_replicas=FLAGS['world_size'], rank=rank)
+    
     train_loader = torch.utils.data.DataLoader(train_dataset,
                              batch_size=FLAGS['batch_size'],
                                                    shuffle=False,
-                                                   num_worker=0,
+                                                   num_workers=0,
                                                    sampler=train_sampler)
     for epoch in range(FLAGS['epochs']):
         for i, (images, labels) in enumerate(train_loader):
@@ -70,9 +73,5 @@ def train(rank, FLAGS):
                 print('Epoch: {}/{}, Loss:{}'.format(epoch + 1, FLAGS['epochs'],
                                                      loss.item()))
 
-mp.spawn(train, nprocs=FLAGS['world_size'], args=(FLAGS,))
-
-
-model = ToyModel()
-from torchsummary import summary
-summary(model, (1, 28, 28))
+if __name__ == '__main__': 
+    mp.spawn(train, nprocs=FLAGS['world_size'], args=(FLAGS,))
