@@ -74,7 +74,7 @@ def train(rank, FLAGS):
             loss.backward()
             xm.optimizer_step(optimizer)
             if not i % FLAGS['log_steps']:
-                print('Epoch: {}/{}, Loss:{}'.format(epoch + 1, FLAGS['epochs'],
+                xm.master_print('Epoch: {}/{}, Loss:{}'.format(epoch + 1, FLAGS['epochs'],
                                                      loss.item()))
 
 if __name__ == '__main__': 
