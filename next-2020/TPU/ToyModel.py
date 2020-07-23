@@ -10,6 +10,7 @@ import torch_xla
 import torch_xla.core.xla_model as xm
 import torch_xla.distributed.parallel_loader as pl
 import torch_xla.distributed.xla_multiprocessing as xmp
+import torch_xla.debug.metrics as met
 
 
 class ToyModel (nn.Module):
@@ -32,7 +33,8 @@ FLAGS = {
     'batch_size': 32,
     'world_size': 8,
     'epochs': 2,
-    'log_steps': 10
+    'log_steps': 10,
+    'metrics_debug': True
 }
 SERIAL_EXEC = xmp.MpSerialExecutor()
 WRAPPED_MODEL = xmp.MpModelWrapper(ToyModel())
@@ -76,6 +78,9 @@ def train(rank, FLAGS):
             if not i % FLAGS['log_steps']:
                 xm.master_print('Epoch: {}/{}, Loss:{}'.format(epoch + 1, FLAGS['epochs'],
                                                      loss.item()))
+        if FLAGS['metrics_debug']: 
+            xm.master_print(met.metrics_report())
 
 if __name__ == '__main__': 
-    xmp.spawn(train, nprocs=FLAGS['world_size'], args=(FLAGS,))
+    xmp.spawn(train, nprocs=FLAGS['world_size'], args=(FLAGS,), start_method='fork')
+
