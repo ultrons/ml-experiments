@@ -37,8 +37,8 @@ def train(rank, FLAGS):
         backend='nccl', world_size=FLAGS['world_size'], init_method='env://',
         rank=rank)
     model = ToyModel()
-    device = torch.cuda.device(rank)
-    model.to(device)
+    torch.cuda.set_device(rank)
+    model.cuda(rank)
     criterion = nn.CrossEntropyLoss().cuda(rank)
     optimizer = torch.optim.SGD(model.parameters(), 1e-4)
 
@@ -61,7 +61,7 @@ def train(rank, FLAGS):
 
     for epoch in range(FLAGS['epochs']):
         train_loader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=FLAGS['batch_size'], shuffle=True,
+            train_dataset, batch_size=FLAGS['batch_size'], shuffle=False,
             num_workers=0, sampler=train_sampler)
         for i, (images, labels) in enumerate(train_loader):
             images = images.cuda(non_blocking=True)
