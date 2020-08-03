@@ -33,7 +33,7 @@ FLAGS = {
     'world_size': 8,
     'epochs': 2,
     'log_steps': 10,
-    'metrics_debug': True
+    'metrics_debug': False
 }
 WRAPPED_MODEL = xmp.MpModelWrapper(ToyModel())
 
@@ -53,7 +53,7 @@ def train(rank, FLAGS):
     )
 
     train_dataset = torchvision.datasets.MNIST(
-        '/tmp/', train=True, download=True, transform=transform)
+        '/tmp/', train=True, download=False, transform=transform)
 
     train_sampler = torch.utils.data.distributed.DistributedSampler(
         train_dataset, num_replicas=FLAGS['world_size'], rank=rank)
@@ -61,7 +61,7 @@ def train(rank, FLAGS):
 
     for epoch in range(FLAGS['epochs']):
         train_loader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=FLAGS['batch_size'], shuffle=True,
+            train_dataset, batch_size=FLAGS['batch_size'], shuffle=False,
             num_workers=0, sampler=train_sampler)
         para_loader = pl.ParallelLoader(train_loader, [device])
         device_loader = para_loader.per_device_loader(device)
