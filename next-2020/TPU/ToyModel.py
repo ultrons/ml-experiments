@@ -1,7 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.multiprocessing as mp
-import torch.distributed as dist
 
 import torchvision
 import torchvision.transforms as transforms
@@ -29,6 +27,7 @@ class ToyModel (nn.Module):
         x = nn.Softmax(dim=-1)(x)
         return x
 
+
 FLAGS = {
     'batch_size': 32,
     'world_size': 8,
@@ -36,8 +35,8 @@ FLAGS = {
     'log_steps': 10,
     'metrics_debug': True
 }
-SERIAL_EXEC = xmp.MpSerialExecutor()
 WRAPPED_MODEL = xmp.MpModelWrapper(ToyModel())
+
 
 def train(rank, FLAGS):
     print("Starting train method on rank: {}".format(rank))
@@ -46,27 +45,27 @@ def train(rank, FLAGS):
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), 1e-4)
 
-    def get_dataset():
-        transform = transforms.Compose(
-            [torchvision.transforms.ToTensor(),
-             torchvision.transforms.Normalize((0.1307,), (0.3081,))])
-    
-        train_dataset = torchvision.datasets.MNIST('/tmp/', train=True, download=True,
-                                 transform=transform)
-        return train_dataset
-    
-    train_dataset = SERIAL_EXEC.run(get_dataset)
+    transform = transforms.Compose(
+        [
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize((0.1307,), (0.3081,))
+        ]
+    )
+
+    train_dataset = torchvision.datasets.MNIST(
+        '/tmp/', train=True, download=True, transform=transform)
+
     train_sampler = torch.utils.data.distributed.DistributedSampler(
         train_dataset, num_replicas=FLAGS['world_size'], rank=rank)
-    
-    train_loader = torch.utils.data.DataLoader(train_dataset,
-                             batch_size=FLAGS['batch_size'],
-                                                   shuffle=False,
-                                                   num_workers=0,
-                                                   sampler=train_sampler)
-    para_loader = pl.ParallelLoader(train_loader, [device])
+
+
     for epoch in range(FLAGS['epochs']):
-        for i, (images, labels) in enumerate(para_loader.per_device_loader(device)):
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset, batch_size=FLAGS['batch_size'], shuffle=True,
+            num_workers=0, sampler=train_sampler)
+        para_loader = pl.ParallelLoader(train_loader, [device])
+        device_loader = para_loader.per_device_loader(device)
+        for i, (images, labels) in enumerate(device_loader):
             # Forward pass
             outputs = model(images)
             loss = criterion(outputs, labels)
@@ -74,13 +73,18 @@ def train(rank, FLAGS):
             # Backward and optimize
             optimizer.zero_grad()
             loss.backward()
+
             xm.optimizer_step(optimizer)
+
             if not i % FLAGS['log_steps']:
-                xm.master_print('Epoch: {}/{}, Loss:{}'.format(epoch + 1, FLAGS['epochs'],
-                                                     loss.item()))
-        if FLAGS['metrics_debug']: 
+                xm.master_print(
+                    'Epoch: {}/{}, Loss:{}'.format(
+                        epoch + 1, FLAGS['epochs'], loss.item()
+                    )
+                )
+        if FLAGS['metrics_debug']:
             xm.master_print(met.metrics_report())
 
-if __name__ == '__main__': 
-    xmp.spawn(train, nprocs=FLAGS['world_size'], args=(FLAGS,), start_method='fork')
 
+if __name__ == '__main__':
+    xmp.spawn(train, nprocs=FLAGS['world_size'], args=(FLAGS,), start_method='fork')

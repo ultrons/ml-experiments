@@ -30,34 +30,39 @@ FLAGS = {
     'log_steps': 10
 }
 
+
 def train(rank, FLAGS):
     print("Starting train method on rank: {}".format(rank))
-    dist.init_process_group(backend='nccl', world_size=FLAGS['world_size'],
-            init_method='env://', rank=rank)
+    dist.init_process_group(
+        backend='nccl', world_size=FLAGS['world_size'], init_method='env://',
+        rank=rank)
     model = ToyModel()
-    torch.cuda.set_device(rank)
-    model.cuda(rank)
+    device = torch.cuda.device(rank)
+    model.to(device)
     criterion = nn.CrossEntropyLoss().cuda(rank)
     optimizer = torch.optim.SGD(model.parameters(), 1e-4)
+
     # Wrap the model
     model = nn.parallel.DistributedDataParallel(model, device_ids=[rank])
 
     transform = transforms.Compose(
-        [torchvision.transforms.ToTensor(),
-         torchvision.transforms.Normalize((0.1307,), (0.3081,))])
+        [
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize((0.1307,), (0.3081,))
+        ]
+    )
 
-    train_dataset = torchvision.datasets.MNIST('/tmp/', train=True, download=True,
-                             transform=transform)
-    
+    train_dataset = torchvision.datasets.MNIST(
+        '/tmp/', train=True, download=True, transform=transform)
+
     train_sampler = torch.utils.data.distributed.DistributedSampler(
         train_dataset, num_replicas=FLAGS['world_size'], rank=rank)
-    
-    train_loader = torch.utils.data.DataLoader(train_dataset,
-                             batch_size=FLAGS['batch_size'],
-                                                   shuffle=False,
-                                                   num_workers=0,
-                                                   sampler=train_sampler)
+
+
     for epoch in range(FLAGS['epochs']):
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset, batch_size=FLAGS['batch_size'], shuffle=True,
+            num_workers=0, sampler=train_sampler)
         for i, (images, labels) in enumerate(train_loader):
             images = images.cuda(non_blocking=True)
             labels = labels.cuda(non_blocking=True)
@@ -68,10 +73,15 @@ def train(rank, FLAGS):
             # Backward and optimize
             optimizer.zero_grad()
             loss.backward()
-            optimizer.step()
-            if not i % FLAGS['log_steps']:
-                print('Epoch: {}/{}, Loss:{}'.format(epoch + 1, FLAGS['epochs'],
-                                                     loss.item()))
 
-if __name__ == '__main__': 
+            optimizer.step()
+
+            if not i % FLAGS['log_steps']:
+                print(
+                    'Epoch: {}/{}, Loss:{}'.format(
+                        epoch + 1, FLAGS['epochs'], loss.item()
+                    )
+                )
+
+if __name__ == '__main__':
     mp.spawn(train, nprocs=FLAGS['world_size'], args=(FLAGS,))
