@@ -6,7 +6,7 @@ import torch.distributed as dist
 import torchvision
 import torchvision.transforms as transforms
 
-
+# Model
 class ToyModel (nn.Module):
     """ Toy Classifier """
     def __init__(self):
@@ -23,6 +23,7 @@ class ToyModel (nn.Module):
         x = nn.Softmax(dim=-1)(x)
         return x
 
+# Config Parameters    
 FLAGS = {
     'batch_size': 32,
     'world_size': 4,
@@ -30,7 +31,7 @@ FLAGS = {
     'log_steps': 10
 }
 
-
+# Training Loop
 def train(rank, FLAGS):
     print("Starting train method on rank: {}".format(rank))
     dist.init_process_group(
@@ -83,5 +84,6 @@ def train(rank, FLAGS):
                     )
                 )
 
+# Run the distributed training with 4 GPUs
 if __name__ == '__main__':
     mp.spawn(train, nprocs=FLAGS['world_size'], args=(FLAGS,))
