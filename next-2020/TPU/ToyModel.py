@@ -1,3 +1,4 @@
+# Imports
 import torch
 import torch.nn as nn
 
@@ -10,7 +11,7 @@ import torch_xla.distributed.parallel_loader as pl
 import torch_xla.distributed.xla_multiprocessing as xmp
 import torch_xla.debug.metrics as met
 
-
+# Model
 class ToyModel (nn.Module):
     """ Toy Classifier """
     def __init__(self):
@@ -27,7 +28,7 @@ class ToyModel (nn.Module):
         x = nn.Softmax(dim=-1)(x)
         return x
 
-
+# Config Parameters
 FLAGS = {
     'batch_size': 32,
     'world_size': 8,
@@ -35,9 +36,10 @@ FLAGS = {
     'log_steps': 10,
     'metrics_debug': False
 }
+SERIAL_EXEC = xmp.MpSerialExecutor()
 WRAPPED_MODEL = xmp.MpModelWrapper(ToyModel())
 
-
+# Training Loop
 def train(rank, FLAGS):
     print("Starting train method on rank: {}".format(rank))
     device = xm.xla_device()
@@ -45,15 +47,18 @@ def train(rank, FLAGS):
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), 1e-4)
 
-    transform = transforms.Compose(
-        [
-            torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize((0.1307,), (0.3081,))
-        ]
-    )
+    def get_dataset():
+        transform = transforms.Compose(
+            [
+                torchvision.transforms.ToTensor(),
+                torchvision.transforms.Normalize((0.1307,), (0.3081,))
+            ]
+        )
+       
+        return torchvision.datasets.MNIST( 
+                '/tmp/', train=True, download=True, transform=transform)
 
-    train_dataset = torchvision.datasets.MNIST(
-        '/tmp/', train=True, download=False, transform=transform)
+    train_dataset = SERIAL_EXEC.run(get_dataset)    
 
     train_sampler = torch.utils.data.distributed.DistributedSampler(
         train_dataset, num_replicas=FLAGS['world_size'], rank=rank)
@@ -85,6 +90,6 @@ def train(rank, FLAGS):
         if FLAGS['metrics_debug']:
             xm.master_print(met.metrics_report())
 
-
+# Distributed training on 4 TPU Chips (8 cores)
 if __name__ == '__main__':
     xmp.spawn(train, nprocs=FLAGS['world_size'], args=(FLAGS,), start_method='fork')
