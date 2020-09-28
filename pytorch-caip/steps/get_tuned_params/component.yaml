@@ -32,7 +32,7 @@ outputs:
     type: String
 implementation:
   container:
-    image: gcr.io/pytorch-tpu-nfs/ml-pipeline-get-tuned-params:latest
+    image: gcr.io/pytorch-tpu-nfs/get-tuned-params
     args: [
       --project_id, {inputValue: project_id},
       --hptune_job_id, {inputValue: hptune_job_id},
