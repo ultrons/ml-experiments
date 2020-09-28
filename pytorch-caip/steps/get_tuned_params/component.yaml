@@ -29,7 +29,7 @@ inputs:
 outputs:
   - name: tuned_parameters_out
     description: 'tuned paramters from the given job'
-    type: String
+    type: List
 implementation:
   container:
     image: gcr.io/pytorch-tpu-nfs/get-tuned-params
