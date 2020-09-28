@@ -1,0 +1,24 @@
+trainingInput:
+  scaleTier: CUSTOM
+  masterType: n1-highmem-8
+  masterConfig:
+      acceleratorConfig:
+          type: NVIDIA_TESLA_V100
+          count: 1
+  hyperparameters:
+    goal: MINIMIZE
+    enableTrialEarlyStopping: true
+    hyperparameterMetricTag: avg_nll_loss
+    maxTrials: 2
+    maxParallelTrials: 2
+    params:
+      - parameterName: lr
+        type: DOUBLE
+        scaleType: UNIT_REVERSE_LOG_SCALE
+        minValue: 0.0001
+        maxValue: 0.001
+      - parameterName: weight-decay
+        type: DOUBLE
+        scaleType: UNIT_LINEAR_SCALE
+        minValue: 0.01
+        maxValue: 0.05

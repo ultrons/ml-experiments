@@ -1,0 +1,7 @@
+trainingInput:
+  scaleTier: CUSTOM
+  masterType: n1-highmem-8
+  masterConfig:
+      acceleratorConfig:
+          type: NVIDIA_TESLA_V100
+          count: 1

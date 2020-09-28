@@ -1,0 +1,8 @@
+steps:
+    - name: 'gcr.io/cloud-builders/docker'
+      dir:  .
+      args: [ 'build', '-t', 'gcr.io/${PROJECT_ID}/fairseq-lm:latest', '.' ]
+images:
+    - 'gcr.io/${PROJECT_ID}/fairseq-lm:latest'
+
+
