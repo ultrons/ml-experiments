@@ -20,7 +20,11 @@ PROJECT_ID = 'pytorch-tpu-nfs'
 REGION = 'us-central1'
 FAIRSEQ_IMAGE = 'gcr.io/pytorch-tpu-nfs/fairseq-lm'
 
-training_input_json = './steps/hypertune/config.yaml'
+hpt_input_json = './steps/hypertune/config.yaml'
+with open(hpt_input_json) as f:
+    hpt_input = json.dumps(yaml.safe_load(f)['trainingInput'])
+
+training_input_json = './steps/training/config.yaml'
 with open(training_input_json) as f:
     training_input = json.dumps(yaml.safe_load(f)['trainingInput'])
 
@@ -49,6 +53,7 @@ pipeline_args = {
     'args': common_args,
     'master_image_uri': FAIRSEQ_IMAGE,
     'training_input': training_input,
+    'hpt_input': hpt_input,
     'job_id_prefix': '',
     'job_id': '',
     'wait_interval': '30'
@@ -65,6 +70,7 @@ def pipeline(
     args=common_args,
     master_image_uri=FAIRSEQ_IMAGE,
     training_input=training_input,
+    hpt_input=hpt_input,
     job_id_prefix='',
     job_id='',
     wait_interval='30'
@@ -76,7 +82,7 @@ def pipeline(
         region=region,
         args=args,
         master_image_uri=master_image_uri,
-        training_input=training_input,
+        training_input=hpt_input,
         job_id_prefix=job_id_prefix,
         job_id=job_id,
         wait_interval=wait_interval)
