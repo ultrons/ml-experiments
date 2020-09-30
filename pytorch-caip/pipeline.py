@@ -85,13 +85,13 @@ def pipeline(
         training_input=hpt_input,
         job_id_prefix=job_id_prefix,
         job_id=job_id,
-        wait_interval=wait_interval)
+        wait_interval=wait_interval).set_display_name("Hyperparameter-Tuning")
 
     get_tuned_param = param_comp(
            project_id=project_id,
            hptune_job_id=hypertune.outputs['job_id'],
            common_args=args
-    )
+    ).set_display_name("Get-Tuned-Param")
 
     train = caip_train_op(
         project_id=project_id,
@@ -101,7 +101,7 @@ def pipeline(
         training_input=training_input,
         job_id_prefix=job_id_prefix,
         job_id=job_id,
-        wait_interval=wait_interval)
+        wait_interval=wait_interval).set_display_name("Training")
 
 
 client = kfp.Client(host='321ff3bfe3fa6d70-dot-us-central2.pipelines.'
