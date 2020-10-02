@@ -1,4 +1,3 @@
-#!/bin/sh -x
 
 function usage() {
         echo "Usage: ./preprocess.sh "
