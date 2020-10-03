@@ -25,7 +25,7 @@ inputs:
     type: String
   - name: common_args
     description: 'Common (non-tunable) args'
-    type: String
+    type: List
 outputs:
   - name: tuned_parameters_out
     description: 'tuned paramters from the given job'

@@ -1,0 +1,22 @@
+name: preprocess
+description: Runs Pre-process step on Wiki-103
+
+inputs:
+  - {name: dataset_bucket, type: String}
+  - {name: args_in, type: List}
+
+outputs:
+  - name: args_out
+    description: 'args in appended with dataset info'
+    type: List
+
+
+implementation:
+  container:
+    image: gcr.io/pytorch-tpu-nfs/fairseq-lm-preprocess:latest
+    command: [
+      bash, /preprocess.sh, 
+      --dataset_bucket, {inputValue: dataset_bucket},
+      --args_out, {outputPath: args_out},
+      --args_in,    {inputValue:  args_in},
+    ]

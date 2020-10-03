@@ -14,11 +14,12 @@ caip_train_op = comp.load_component_from_url(
             'components/gcp/ml_engine/train/component.yaml')
 # pre_process_op = cs.load_component('preProcess')
 param_comp = cs.load_component('get_tuned_params')
+preprocess_op = cs.load_component('preprocess')
 
 # Config parameters
 PROJECT_ID = 'pytorch-tpu-nfs'
 REGION = 'us-central1'
-FAIRSEQ_IMAGE = 'gcr.io/pytorch-tpu-nfs/fairseq-lm'
+FAIRSEQ_IMAGE = 'gcr.io/pytorch-tpu-nfs/fairseq-lm-train'
 
 hpt_input_json = './steps/hypertune/config.yaml'
 with open(hpt_input_json) as f:
@@ -30,11 +31,10 @@ with open(training_input_json) as f:
 
 common_args = json.dumps([
         '--task', 'language_modeling',
-        'data-bin/wikitext-103',
         '--save-dir', 'checkpoints/transformer_wikitext-103',
         '--arch', 'transformer_lm', '--share-decoder-input-output-embed',
         '--dropout', '0.1',
-        '--optimizer', 'adam', '--adam-betas', '(0.9, 0.98)',
+        '--optimizer', 'adam', '--adam-betas', '(0.9,0.98)',
         '--clip-norm', '0.0',
         '--lr-scheduler', 'inverse_sqrt',
         '--warmup-updates', '4000',
@@ -56,7 +56,8 @@ pipeline_args = {
     'hpt_input': hpt_input,
     'job_id_prefix': '',
     'job_id': '',
-    'wait_interval': '30'
+    'wait_interval': '30',
+    'dataset_bucket': 'gs://kfp-exp/fairseq-lm-data'
         }
 
 
@@ -73,24 +74,32 @@ def pipeline(
     hpt_input=hpt_input,
     job_id_prefix='',
     job_id='',
-    wait_interval='30'
+    wait_interval='30',
+    dataset_bucket='gs://kfp-exp/fairseq-lm-data'
 ):
     """ Pipeline (DAG) definition """
+
+    preprocess = preprocess_op (
+            dataset_bucket=dataset_bucket,
+            args_in=args
+            )
 
     hypertune = caip_train_op(
         project_id=project_id,
         region=region,
-        args=args,
+        args=preprocess.outputs['args_out'],
         master_image_uri=master_image_uri,
         training_input=hpt_input,
         job_id_prefix=job_id_prefix,
         job_id=job_id,
-        wait_interval=wait_interval).set_display_name("Hyperparameter-Tuning")
+        wait_interval=wait_interval
+        ).set_display_name("Hyperparameter-Tuning")
+    hypertune.execution_options.caching_strategy.max_cache_staleness = "P0D"
 
     get_tuned_param = param_comp(
            project_id=project_id,
            hptune_job_id=hypertune.outputs['job_id'],
-           common_args=args
+           common_args=preprocess.outputs['args_out']
     ).set_display_name("Get-Tuned-Param")
 
     train = caip_train_op(
@@ -101,7 +110,8 @@ def pipeline(
         training_input=training_input,
         job_id_prefix=job_id_prefix,
         job_id=job_id,
-        wait_interval=wait_interval).set_display_name("Training")
+        wait_interval=wait_interval
+        ).set_display_name("Training")
 
 
 client = kfp.Client(host='321ff3bfe3fa6d70-dot-us-central2.pipelines.'

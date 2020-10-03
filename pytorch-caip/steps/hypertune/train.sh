@@ -14,14 +14,13 @@ while [ $# -ne 0 ]; do
       --dataset)dataset=$2
                        shift
                        ;;
-                   --) shift
+                   --) shift 
                        break
                        ;;
        *)              shift
                         ;;
     esac
 done   
-
 
 function invalid_bucket () {
 	echo "ERROR: Invalid/Inaccessible Bucket: ${1}" 
@@ -47,8 +46,7 @@ else
 	gsutil -m cp -r ${dataset} . || invalid_dataset
 fi
 
-dataset_local=`basename ${dataset}`
-
-
-echo "faiseq-train ${dataset_local} $@"
+#args=`echo $@ | sed -e "s/(/'&/g" -e "s/)/&'/g"`
+#eval fairseq-train $args
+fairseq-train $@
 

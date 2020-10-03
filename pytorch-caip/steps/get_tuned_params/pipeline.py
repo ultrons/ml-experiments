@@ -15,11 +15,12 @@ caip_train_op = comp.load_component_from_url(
                                 'components/gcp/ml_engine/train/component.yaml')
 #pre_process_op = cs.load_component('preProcess')
 param_comp = cs.load_component('get_tuned_params')
+preprocess_op = cs.load_component('preprocess')
 
 # Config parameters
 PROJECT_ID = 'pytorch-tpu-nfs'
 REGION = 'us-central1'
-FAIRSEQ_IMAGE = 'gcr.io/pytorch-tpu-nfs/fairseq-lm'
+FAIRSEQ_IMAGE = 'gcr.io/pytorch-tpu-nfs/fairseq-lm-train'
 training_input_json = './config.yaml'
 with open(training_input_json) as f:
     training_input = json.dumps(yaml.safe_load(f)['trainingInput'])
@@ -29,7 +30,6 @@ pipeline_args = {
     'region': REGION,
     'args': json.dumps([
         '--task', 'language_modeling',
-        'data-bin/wikitext-103',
         '--save-dir', 'checkpoints/transformer_wikitext-103',
         '--arch', 'transformer_lm', '--share-decoder-input-output-embed',
         '--dropout', '0.1',
@@ -49,7 +49,8 @@ pipeline_args = {
     'training_input': training_input,
     'job_id_prefix': '',
     'job_id': '',
-    'wait_interval': '30'
+    'wait_interval': '30',
+    'dataset_bucket' : 'gs://kfp-exp/fairseq-lm-data'
         }
 
 @dsl.pipeline(
@@ -81,14 +82,20 @@ def pipeline(
     training_input=training_input,
     job_id_prefix='',
     job_id='',
-    wait_interval='30'
+    wait_interval='30',
+    dataset_bucket='gs://kfp-exp/fairseq-lm-data'
 ):
     """ Pipeline (DAG) definition """
 
+    preprocess = preprocess_op (
+            dataset_bucket=dataset_bucket,
+            args_in=args
+            )
+    preprocess.execution_options.caching_strategy.max_cache_staleness = "P0D"
     get_tuned_param = param_comp (
            project_id=project_id,
            hptune_job_id='job_04da57b129ef21a50253eb0bf950383b',
-           common_args=args
+           common_args=preprocess.outputs['args_out']
     )
 
  
