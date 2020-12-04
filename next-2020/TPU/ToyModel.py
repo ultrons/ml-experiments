@@ -54,23 +54,20 @@ def train(rank, FLAGS):
                 torchvision.transforms.Normalize((0.1307,), (0.3081,))
             ]
         )
-       
-        return torchvision.datasets.MNIST( 
+
+        return torchvision.datasets.MNIST(
                 '/tmp/', train=True, download=True, transform=transform)
 
-    train_dataset = SERIAL_EXEC.run(get_dataset)    
-
+    train_dataset = SERIAL_EXEC.run(get_dataset)
     train_sampler = torch.utils.data.distributed.DistributedSampler(
         train_dataset, num_replicas=FLAGS['world_size'], rank=rank)
 
-
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset, batch_size=FLAGS['batch_size'], shuffle=False,
+        num_workers=0, sampler=train_sampler)
+    train_loader = pl.MpDeviceLoader(train_loader, device)
     for epoch in range(FLAGS['epochs']):
-        train_loader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=FLAGS['batch_size'], shuffle=False,
-            num_workers=0, sampler=train_sampler)
-        para_loader = pl.ParallelLoader(train_loader, [device])
-        device_loader = para_loader.per_device_loader(device)
-        for i, (images, labels) in enumerate(device_loader):
+        for i, (images, labels) in enumerate(train_loader):
             # Forward pass
             outputs = model(images)
             loss = criterion(outputs, labels)
