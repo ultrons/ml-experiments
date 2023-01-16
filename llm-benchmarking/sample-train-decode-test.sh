@@ -6,7 +6,7 @@ export ACCELERATOR_TYPE=$(curl http://metadata.google.internal/computeMetadata/v
 export FLAX_PROFILE=1
 export MODEL_DIR="gs://sivaibhav-exp/t5x/t5x-models/benchmark/${ACCELERATOR_TYPE}-${EXP_PREFIX:=scale-ie}"
 export XLA_FLAGS="--xla_dump_to=./xla.d"
-python3 t5x/train.py \
+python3 $HOME/t5x/t5x/train.py \
   --gin_search_paths=/home/sivaibhav/t5x \
   --gin_file=./pretrain-test.gin \
   --gin_file=./config-test.gin \

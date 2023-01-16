@@ -4,7 +4,7 @@ export LIBTPU_INIT_ARGS="--xla_enable_async_all_gather=true"
 export ACCELERATOR_TYPE=$(curl http://metadata.google.internal/computeMetadata/v1/instance/attributes/accelerator-type -H "Metadata-Flavor: Google")
 export FLAX_PROFILE=1
 export MODEL_DIR="gs://sivaibhav-exp/t5x/t5x-models/benchmark/${ACCELERATOR_TYPE}-${EXP_PREFIX:=scale}"
-python3 t5x/train.py \
+python3 $HOME/t5x/t5x/train.py \
   --gin_search_paths=/home/sivaibhav/t5x \
   --gin_file=./pretrain-32b.gin \
   --gin_file=./config-32b.gin \
